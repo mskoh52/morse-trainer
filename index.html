@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f1117" />
+  <title>Morse Trainer</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- ============ PROFILE SELECT ============ -->
+    <section id="screen-profiles" class="screen active">
+      <div class="hero">
+        <div class="hero-key">· −</div>
+        <h1>Morse Trainer</h1>
+        <p class="tagline">Learn Morse code by ear, one lesson at a time.</p>
+      </div>
+      <h2 class="section-title">Who is practicing?</h2>
+      <div id="profile-list" class="profile-grid"></div>
+    </section>
+
+    <!-- ============ LESSON MAP ============ -->
+    <section id="screen-home" class="screen">
+      <header class="topbar">
+        <button class="icon-btn" id="btn-switch-profile" title="Switch profile">&#8592;</button>
+        <div class="topbar-profile">
+          <span class="topbar-avatar" id="home-avatar"></span>
+          <span class="topbar-name" id="home-name"></span>
+        </div>
+        <button class="icon-btn" id="btn-settings" title="Settings">&#9881;</button>
+      </header>
+
+      <div class="progress-summary" id="progress-summary"></div>
+
+      <button class="btn wide-btn" id="btn-reference">&#9835; Character reference</button>
+
+      <h2 class="section-title">Lessons</h2>
+      <div id="lesson-list" class="lesson-list"></div>
+    </section>
+
+    <!-- ============ CHARACTER REFERENCE ============ -->
+    <section id="screen-reference" class="screen">
+      <header class="topbar">
+        <button class="icon-btn" id="btn-close-reference" title="Back">&#8592;</button>
+        <div class="practice-title">Character reference</div>
+        <span style="width:44px"></span>
+      </header>
+      <div class="ref-hint" id="ref-hint"></div>
+      <div class="reference-body" id="reference-body"></div>
+    </section>
+
+    <!-- ============ PRACTICE ============ -->
+    <section id="screen-practice" class="screen">
+      <header class="topbar">
+        <button class="icon-btn" id="btn-quit-practice" title="Back">&#10005;</button>
+        <div class="practice-title" id="practice-title"></div>
+        <button class="icon-btn" id="btn-review-chars" title="Review the new characters">?</button>
+      </header>
+
+      <div class="practice-progress-track"><div class="practice-progress-bar" id="practice-progress-bar"></div></div>
+
+      <!-- Teach phase: presents the lesson's new characters (navigable) -->
+      <div id="teach-phase" class="teach-phase hidden">
+        <div class="teach-label" id="teach-label">New characters</div>
+        <div class="teach-box" id="teach-box">
+          <button class="teach-arrow" id="teach-prev" aria-label="Previous character">&#8249;</button>
+          <div class="teach-center">
+            <div class="teach-char-row">
+              <div class="teach-char" id="teach-char"></div>
+              <span class="signal-light" id="teach-light" aria-hidden="true"></span>
+            </div>
+            <div class="teach-pattern" id="teach-pattern"></div>
+            <button class="btn primary teach-hear" id="teach-play">&#9835; Hear it</button>
+          </div>
+          <button class="teach-arrow" id="teach-next" aria-label="Next character">&#8250;</button>
+        </div>
+        <div class="teach-dots" id="teach-dots"></div>
+        <div class="teach-actions" id="teach-actions">
+          <button class="btn primary teach-start" id="teach-start-chars">Character practice &rarr;</button>
+          <button class="btn teach-start" id="teach-start-words">Word practice &rarr;</button>
+        </div>
+        <button class="btn teach-start hidden" id="teach-resume">Back to practice &rarr;</button>
+      </div>
+
+      <!-- Prompt -->
+      <div id="prompt-area" class="prompt-area">
+        <div class="prompt-instruction" id="prompt-instruction"></div>
+        <div class="prompt-target-row">
+          <div class="prompt-target" id="prompt-target"></div>
+          <span class="signal-light" id="signal-light" aria-hidden="true"></span>
+        </div>
+        <div class="prompt-hint" id="prompt-hint"></div>
+        <div class="word-nav hidden" id="word-nav">
+          <button class="teach-arrow" id="word-prev" aria-label="Previous word">&#8249;</button>
+          <span class="word-count" id="word-count"></span>
+          <button class="teach-arrow" id="word-next" aria-label="Next word">&#8250;</button>
+        </div>
+      </div>
+
+      <!-- Live entry -->
+      <div class="entry-row" id="entry-row">
+        <div class="entry-display" id="entry-display"></div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="feedback" id="feedback"></div>
+
+      <!-- Keyer -->
+      <div class="keyer-area" id="keyer-area">
+        <button class="key" id="key" aria-label="Morse key">
+          <span class="key-label">TAP</span>
+          <span class="key-sub">short = dit · hold = dah</span>
+        </button>
+        <div class="keyer-controls">
+          <button class="btn key-ctrl" id="btn-clear">Clear</button>
+          <button class="btn key-ctrl primary" id="btn-submit">
+            <span class="btn-fill" id="submit-fill"></span>
+            <span class="btn-label">Submit</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Session summary overlay -->
+      <div id="summary" class="summary hidden"></div>
+    </section>
+
+    <!-- ============ SETTINGS ============ -->
+    <section id="screen-settings" class="screen">
+      <header class="topbar">
+        <button class="icon-btn" id="btn-close-settings" title="Back">&#8592;</button>
+        <div class="practice-title">Settings</div>
+        <span style="width:44px"></span>
+      </header>
+      <div class="settings-body" id="settings-body"></div>
+    </section>
+  </div>
+
+  <!-- ============ MODAL ============ -->
+  <div id="modal-backdrop" class="modal-backdrop hidden">
+    <div class="modal" id="modal"></div>
+  </div>
+
+  <script src="js/morse.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/srs.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

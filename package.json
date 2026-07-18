@@ -1,0 +1,10 @@
+{
+  "name": "morse-trainer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser-only Morse code trainer with Koch/Farnsworth lessons and spaced repetition.",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node tests/app.test.js"
+  }
+}
