@@ -22,16 +22,21 @@ browser's `localStorage`. Clearing site data resets everything.
 - **Learn by sound.** Prompts play the character; the dot/dash chart is hidden by
   default (toggle in Settings). Tapping a lesson opens its presentation, where the new
   characters can be heard and reviewed.
-- **Two practice modes.** From the presentation, choose **Character practice** (the
-  Koch drill) or **Word practice**. Word practice is a bonus: it stays locked until this
-  lesson's character practice is passed (and from lesson 3, when the first vowels arrive).
+- **Practice modes.** From the presentation, choose **Character practice** (the Koch
+  drill), **Word practice** (sending — key whole words), or **Word comprehension**
+  (copying — hear a word and pick it from choices). The two word modes are a bonus: they
+  stay locked until this lesson's character practice is passed, and are hidden entirely
+  before lesson 3, when the first vowels arrive.
 - **Spaced repetition.** Each character is an SM-2 card. Due earlier characters are
   mixed into later lessons to keep them fresh.
-- **Word practice.** 10 words built from learned characters, each featuring the lesson's
-  new characters. Key the whole word at your own rhythm and press **Submit** — the app
-  decodes the entire stream at once, inferring letter boundaries from your own timing
-  (adaptive to your speed). It is not graded: retry freely and move between words with
-  the arrows.
+- **Word practice (sending).** 10 words built from learned characters, each featuring the
+  lesson's new characters. Key the whole word at your own rhythm and press **Submit** —
+  the app decodes the entire stream at once, inferring letter boundaries from your own
+  timing (adaptive to your speed). Not graded: retry freely, move between words with the
+  arrows.
+- **Word comprehension (copying).** The same words, reordered: the app plays a word in
+  Morse (with the signal light) and you pick it from multiple-choice buttons. Tap the
+  **?** to replay. Not graded.
 - **Signal light.** A lamp beside the character is a second modality: it blinks the dits
   and dahs in time with the sound, and lights up live while you hold the key.
 

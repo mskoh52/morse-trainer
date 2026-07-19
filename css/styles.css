@@ -158,6 +158,12 @@ h1, h2, h3 { font-weight: 700; }
 .word-nav { display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 4px; }
 .word-count { color: var(--muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; min-width: 48px; }
 
+/* Word-comprehension multiple-choice answers. */
+.choices { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+.choice-btn { width: 100%; font-size: 1.2rem; font-family: "SF Mono", ui-monospace, Menlo, monospace; letter-spacing: 0.06em; }
+.choice-btn.correct { background: rgba(62, 207, 142, 0.18); border-color: var(--ok); color: var(--ok); }
+.choice-btn.wrong { background: rgba(255, 107, 107, 0.16); border-color: var(--bad); color: var(--bad); }
+
 .entry-row { display: flex; justify-content: center; margin: 4px 0; }
 .entry-display {
   font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 2.2rem; letter-spacing: 0.18em;

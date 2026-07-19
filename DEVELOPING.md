@@ -55,15 +55,23 @@ offers two choices:
 - **Character practice** (`beginCharacterPractice`) — builds a fresh `queue` and runs
   `nextPrompt` over it (see/listen prompts). `finishSession` grades character accuracy,
   handles the ≥90% pass, and advances the lesson.
-- **Word practice** (`beginWordPractice`) — a bonus, unlocked only after the lesson's
-  character practice is passed (`progress.completed[lessonId]`) and from lesson 3; the
-  hub button is hidden entirely before lesson 3, and shown-but-disabled on lesson 3+
-  until passed (see `startTeach`). 10 words from `pickWords`.
-  Exploratory and ungraded: the learner keys a whole word (recorded as
-  `wordMarks`/`wordGaps`), presses Submit, and `decodeWord` interprets the whole stream
-  at once. `goToWord` moves between words; a fresh tap after a checked word starts a new
-  attempt (`resetWordAttempt`, gated by `wordReviewed`). It never calls `finishSession`
-  and does not affect lesson progression.
+- **Word practice** (`beginWordPractice`, kind `"words"`) — sending. A bonus, unlocked
+  only after the lesson's character practice is passed (`progress.completed[lessonId]`)
+  and from lesson 3; the hub buttons are hidden entirely before lesson 3, and
+  shown-but-disabled on lesson 3+ until passed (see `startTeach`). The learner keys a
+  whole word (recorded as `wordMarks`/`wordGaps`), presses Submit, and `decodeWord`
+  interprets the whole stream at once. A fresh tap after a checked word starts a new
+  attempt (`resetWordAttempt`, gated by `wordReviewed`).
+- **Word comprehension** (`beginComprehension`, kind `"comprehend"`) — copying. Same
+  gating. Plays the word (`playWordAudio` → `AudioEngine.playWord` + `flashWord`) and the
+  learner picks it from multiple-choice buttons (`renderChoices`; correct word plus up to
+  three distractors from the set). `setInputMode("choice")` swaps the keyer for the
+  `#choices` buttons; `acceptingInput` is false so the key/space is inert.
+
+Both word modes share the lesson's word set via `getLessonWords` (cached on the session),
+so production and comprehension drill the same words — comprehension just reshuffles. Both
+are exploratory and ungraded: `goToWord`/`showCurrentWord` move between words, and neither
+calls `finishSession` or affects lesson progression.
 
 On a pass, the character summary offers **Next lesson** (only shown when passed) and
 **Back to lesson** (re-enters the hub, where word practice is now unlocked).

@@ -179,6 +179,27 @@
         }, totalMs + 20);
       });
     }
+
+    // Play a whole word: characters at full speed, separated by a 3-unit
+    // inter-character gap (standard Morse letter spacing).
+    playWord(word) {
+      if (this.muted) return;
+      const ctx = this._ensureCtx();
+      const u = this.unit() / 1000;
+      let t = ctx.currentTime + 0.05;
+      const chars = word.toUpperCase().split("");
+      chars.forEach((ch, ci) => {
+        const pattern = MORSE[ch];
+        if (!pattern) return;
+        for (let i = 0; i < pattern.length; i++) {
+          const sym = pattern[i];
+          this._beep(t, sym === "-" ? 3 : 1);
+          t += (sym === "-" ? 3 : 1) * u;
+          if (i < pattern.length - 1) t += 1 * u; // intra-character gap
+        }
+        if (ci < chars.length - 1) t += 3 * u; // inter-character gap
+      });
+    }
   }
 
   window.MORSE = MORSE;

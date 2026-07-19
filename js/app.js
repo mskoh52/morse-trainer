@@ -307,12 +307,13 @@
       locked: false, // true while showing feedback / between prompts
       acceptingInput: false, // true only while a real prompt is on screen
       inPractice: false, // a practice run has started (enables resume)
-      wordPhase: false, // true while the word practice is running
-      words: [], // words available in this word-practice run
+      words: [], // words in the active word/comprehension run
       wordIndex: 0,
       wordMarks: [], // durations (ms) of each keyed element in the current word
       wordGaps: [], // silence (ms) before each element (wordGaps[0] unused)
       wordReviewed: false, // current word has been submitted and checked
+      comprehendAwarded: false, // current comprehension word already credited
+      lessonWords: null, // the lesson's word set, shared by both word modes
     };
 
     el("practice-title").textContent = "Lesson " + lessonId;
@@ -321,11 +322,28 @@
     startTeach(false); // land on the presentation hub
   }
 
-  // Toggle the practice controls (prompt, entry, keyer). Hidden during teaching.
+  // Toggle the practice controls (prompt, entry, keyer, choices) as a group.
   function setPracticeUiVisible(visible) {
-    ["prompt-area", "entry-row", "feedback", "keyer-area"].forEach((id) =>
+    ["prompt-area", "entry-row", "feedback", "keyer-area", "choices"].forEach((id) =>
       el(id).classList.toggle("hidden", !visible)
     );
+  }
+
+  // Choose which answer surface is active: the key (character/word production)
+  // or the multiple-choice buttons (word comprehension).
+  function setInputMode(kind) {
+    el("keyer-area").classList.toggle("hidden", kind !== "key");
+    el("entry-row").classList.toggle("hidden", kind !== "key");
+    el("choices").classList.toggle("hidden", kind !== "choice");
+  }
+
+  // The lesson's word set, picked once and shared by production and
+  // comprehension so both drill the same words (comprehension just reorders).
+  function getLessonWords() {
+    if (!session.lessonWords) {
+      session.lessonWords = pickWords(session.lessonId, WORDS_PER_SESSION);
+    }
+    return session.lessonWords;
   }
 
   // Show the presentation. `fromReview` = the learner stepped back from an
@@ -351,12 +369,14 @@
       session.lessonId >= WORD_START_LESSON &&
       pickWords(session.lessonId, 1).length > 0;
     const wordsReady = charsPassed && hasWords;
-    const wordBtn = el("teach-start-words");
-    // Before lesson 3 there are no words at all, so hide the button entirely.
-    // From lesson 3 it shows but stays locked until character practice is passed.
-    wordBtn.classList.toggle("hidden", session.lessonId < WORD_START_LESSON);
-    wordBtn.disabled = !wordsReady;
-    wordBtn.title = wordsReady ? "" : "Pass character practice to unlock word practice";
+    // Both word modes share gating: hidden entirely before lesson 3, then shown
+    // but locked until this lesson's character practice is passed.
+    ["teach-start-words", "teach-start-listen"].forEach((id) => {
+      const btn = el(id);
+      btn.classList.toggle("hidden", session.lessonId < WORD_START_LESSON);
+      btn.disabled = !wordsReady;
+      btn.title = wordsReady ? "" : "Pass character practice to unlock";
+    });
 
     renderTeachDots();
     renderTeachChar(true);
@@ -402,7 +422,6 @@
   // Start character practice fresh (rebuilds the drill queue).
   function beginCharacterPractice() {
     session.kind = "chars";
-    session.wordPhase = false;
     session.inPractice = true;
     session.mode = "see";
     session.index = 0;
@@ -412,22 +431,39 @@
     session.queue = buildQueue(session.lessonId);
     el("teach-phase").classList.add("hidden");
     setPracticeUiVisible(true);
+    setInputMode("key");
     nextPrompt();
   }
 
-  // Start word practice fresh (10 words built from learned characters).
+  // Start word production practice: key each word (same set as comprehension).
   function beginWordPractice() {
-    const words = pickWords(session.lessonId, WORDS_PER_SESSION);
+    const words = getLessonWords();
     if (!words.length) return;
     session.kind = "words";
-    session.wordPhase = true;
     session.inPractice = true;
     session.mode = "word";
-    session.words = words;
+    session.words = words.slice();
     session.wordIndex = 0;
     el("teach-phase").classList.add("hidden");
     setPracticeUiVisible(true);
+    setInputMode("key");
     showWordPrompt();
+  }
+
+  // Start word comprehension: hear a word, pick it from choices. Same words as
+  // production, reordered.
+  function beginComprehension() {
+    const words = getLessonWords();
+    if (!words.length) return;
+    session.kind = "comprehend";
+    session.inPractice = true;
+    session.mode = "comprehend";
+    session.words = shuffleNoAdjacentRepeat(words.slice());
+    session.wordIndex = 0;
+    el("teach-phase").classList.add("hidden");
+    setPracticeUiVisible(true);
+    setInputMode("choice");
+    showComprehension();
   }
 
   function goToWord(delta) {
@@ -437,15 +473,29 @@
     );
     if (next === session.wordIndex) return;
     session.wordIndex = next;
-    showWordPrompt();
+    showCurrentWord();
+  }
+
+  // Render the current word in whichever word mode is active.
+  function showCurrentWord() {
+    if (session.kind === "comprehend") showComprehension();
+    else showWordPrompt();
   }
 
   // Resume the practice that was paused when the learner stepped back.
   function resumePractice() {
     el("teach-phase").classList.add("hidden");
     setPracticeUiVisible(true);
-    if (session.wordPhase) showWordPrompt();
-    else showCurrentPrompt();
+    if (session.kind === "words") {
+      setInputMode("key");
+      showWordPrompt();
+    } else if (session.kind === "comprehend") {
+      setInputMode("choice");
+      showComprehension();
+    } else {
+      setInputMode("key");
+      showCurrentPrompt();
+    }
   }
 
   // "Hear it" replays the current character; it does not advance.
@@ -457,6 +507,9 @@
   el("teach-start-chars").addEventListener("click", beginCharacterPractice);
   el("teach-start-words").addEventListener("click", () => {
     if (!el("teach-start-words").disabled) beginWordPractice();
+  });
+  el("teach-start-listen").addEventListener("click", () => {
+    if (!el("teach-start-listen").disabled) beginComprehension();
   });
   el("teach-resume").addEventListener("click", resumePractice);
   el("word-prev").addEventListener("click", () => goToWord(-1));
@@ -524,6 +577,7 @@
     wordLastRelease = 0;
     clearFlash();
     resetSubmitFill();
+    setInputMode("key");
     el("feedback").textContent = "";
     el("feedback").className = "feedback";
 
@@ -547,6 +601,84 @@
     session.promptShownAt = Date.now();
     session.acceptingInput = true;
   }
+
+  // ---- Word comprehension --------------------------------------------------
+  // Receiving practice: play a word in Morse; the learner picks it from
+  // multiple choices. Same word set as production, reordered. Ungraded.
+  function showComprehension() {
+    session.locked = false;
+    session.comprehendAwarded = false;
+    session.acceptingInput = false; // answers come from the choice buttons
+    clearFlash();
+    resetSubmitFill();
+    setInputMode("choice");
+    el("feedback").textContent = "";
+    el("feedback").className = "feedback";
+
+    const total = session.words.length;
+    session.target = session.words[session.wordIndex];
+    el("practice-progress-bar").style.width =
+      Math.round(((session.wordIndex + 1) / total) * 100) + "%";
+
+    el("prompt-instruction").textContent = "Which word did you hear? (tap ? to replay)";
+    el("prompt-target").textContent = "?";
+    el("prompt-target").classList.add("mystery");
+    el("prompt-target").classList.remove("word");
+    el("prompt-hint").textContent = "";
+    el("word-nav").classList.remove("hidden");
+    el("word-count").textContent = session.wordIndex + 1 + " / " + total;
+    el("word-prev").disabled = session.wordIndex === 0;
+    el("word-next").disabled = session.wordIndex === total - 1;
+    renderChoices();
+    playWordAudio(session.target, el("signal-light"));
+    session.promptShownAt = Date.now();
+  }
+
+  function renderChoices() {
+    const correct = session.target;
+    const pool = session.words.filter((w) => w !== correct);
+    const distractors = shuffleNoAdjacentRepeat(pool.slice()).slice(
+      0,
+      Math.min(3, pool.length)
+    );
+    const options = shuffleNoAdjacentRepeat([correct].concat(distractors));
+    el("choices").innerHTML = options
+      .map(
+        (w) =>
+          '<button class="btn choice-btn" data-word="' + w + '">' +
+          escapeHtml(w) + "</button>"
+      )
+      .join("");
+  }
+
+  el("choices").addEventListener("click", (e) => {
+    const btn = e.target.closest(".choice-btn");
+    if (!btn || !session || session.mode !== "comprehend") return;
+    const chosen = btn.dataset.word;
+    const correct = session.target;
+    el("choices").querySelectorAll(".choice-btn").forEach((b) =>
+      b.classList.remove("correct", "wrong")
+    );
+    const fb = el("feedback");
+    if (chosen === correct) {
+      btn.classList.add("correct");
+      fb.className = "feedback ok";
+      fb.innerHTML = "✓ " + correct + " — ▸ for the next word";
+      if (!session.comprehendAwarded) {
+        new Set(correct.split("")).forEach((c) => {
+          progress.srs[c] = SRS.grade(progress.srs[c], true, false);
+        });
+        Store.saveProgress(profileId, progress);
+        session.comprehendAwarded = true;
+      }
+    } else {
+      btn.classList.add("wrong");
+      const right = el("choices").querySelector('[data-word="' + correct + '"]');
+      if (right) right.classList.add("correct");
+      fb.className = "feedback bad";
+      fb.innerHTML = "✗ that was <strong>" + escapeHtml(correct) + "</strong>";
+    }
+  });
 
   // Decode a keyed stream into letters. Pure and testable: dit/dah come from
   // the press length vs `threshold` (absolute); letter boundaries are inferred
@@ -628,6 +760,7 @@
     session.locked = false;
     session.entry = "";
     resetSubmitFill();
+    setInputMode("key");
     updateEntryDisplay();
     el("feedback").textContent = "";
     el("feedback").className = "feedback";
@@ -657,10 +790,14 @@
     session.acceptingInput = true;
   }
 
-  // Tap the mystery "?" to replay the sound on "key what you hear" prompts.
+  // Tap the mystery "?" to replay the sound: single character in listen mode,
+  // the whole word in comprehension mode.
   el("prompt-target").addEventListener("click", () => {
-    if (session && session.acceptingInput && session.mode === "listen") {
+    if (!session) return;
+    if (session.mode === "listen" && session.acceptingInput) {
       playAndFlash(session.target);
+    } else if (session.mode === "comprehend") {
+      playWordAudio(session.target, el("signal-light"));
     }
   });
 
@@ -705,6 +842,29 @@
   function playAndFlash(char, lightId) {
     audio.playChar(char);
     flashPattern(MORSE[char], lightId);
+  }
+
+  // Blink a whole word on `light`, with 3-unit gaps between letters, matching
+  // the audio in playWord.
+  function flashWord(light, word) {
+    clearFlash();
+    flashLight = light;
+    const unit = 1200 / progress.settings.charWpm;
+    let t = 60; // audio scheduling offset
+    word.split("").forEach((ch, ci) => {
+      MORSE[ch].split("").forEach((sym) => {
+        const len = (sym === "-" ? 3 : 1) * unit;
+        flashTimers.push(setTimeout(() => light.classList.add("on"), t));
+        flashTimers.push(setTimeout(() => light.classList.remove("on"), t + len));
+        t += len + unit; // one-unit gap after each element
+      });
+      if (ci < word.length - 1) t += 2 * unit; // bring gap up to ~3 units
+    });
+  }
+
+  function playWordAudio(word, light) {
+    audio.playWord(word);
+    flashWord(light, word);
   }
 
   // ---- Keyer ---------------------------------------------------------------
@@ -1256,6 +1416,7 @@
     startSession,
     beginCharacterPractice,
     beginWordPractice,
+    beginComprehension,
     getSession: () => session,
   };
 

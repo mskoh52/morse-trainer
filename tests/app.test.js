@@ -312,6 +312,32 @@ check("lesson flow: word practice yields a full set of word prompts", () => {
   Store.deleteProfile(p.id);
 });
 
+check("word comprehension uses the same words as production, offers choices", () => {
+  const p = Store.createProfile("Copy", "🐬");
+  T.selectProfile(p.id);
+  T.startSession(4);
+
+  T.beginWordPractice();
+  const production = T.getSession().words.slice();
+  T.beginComprehension();
+  const s = T.getSession();
+  eq(s.kind, "comprehend");
+  eq(s.mode, "comprehend");
+  eq(s.words.length, T.WORDS_PER_SESSION);
+  // Same word set as production (order may differ).
+  eq(
+    s.words.slice().sort().join(","),
+    production.slice().sort().join(","),
+    "comprehension should reuse the production word set"
+  );
+  const choices = w.document.getElementById("choices").innerHTML;
+  assert(
+    choices.indexOf('data-word="' + s.target + '"') >= 0,
+    "choices should include the target word"
+  );
+  Store.deleteProfile(p.id);
+});
+
 check("word practice button is hidden on lessons 1 and 2", () => {
   const wordBtn = () => w.document.getElementById("teach-start-words");
   const p = Store.createProfile("Early", "🐝");
