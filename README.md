@@ -75,7 +75,8 @@ letters, then press **Submit** to decode and check it.
 ## Profiles
 
 Multiple profiles, each with a cute avatar and its own progress. No passwords.
-Long-press / right-click a profile card to delete it.
+Delete a profile from **Manage profiles** (beneath the profile grid), or by
+long-pressing / right-clicking its card — both confirm first.
 
 ## Character reference
 

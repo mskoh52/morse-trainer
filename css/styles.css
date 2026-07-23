@@ -315,6 +315,13 @@ h1, h2, h3 { font-weight: 700; }
 .avatar-choice { font-size: 1.6rem; background: var(--bg-3); border: 2px solid transparent; border-radius: 12px; padding: 6px 0; cursor: pointer; }
 .avatar-choice.selected { border-color: var(--accent); background: rgba(91, 140, 255, 0.15); }
 
+/* ---------- Manage profiles ---------- */
+.manage-list { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.manage-row { display: flex; align-items: center; gap: 12px; background: var(--bg-3); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
+.manage-avatar { font-size: 1.6rem; flex: none; }
+.manage-name { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.manage-del { flex: none; }
+
 .hidden { display: none !important; }
 
 @media (max-width: 420px) {

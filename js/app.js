@@ -118,6 +118,42 @@
       '<span class="profile-avatar">+</span><span class="profile-name">New profile</span>';
     add.addEventListener("click", openNewProfile);
     container.appendChild(add);
+
+    // "Manage profiles" is only useful once at least one profile exists.
+    el("btn-manage-profiles").classList.toggle("hidden", profiles.length === 0);
+  }
+
+  // Manage-profiles modal: a list of every profile with a Delete button that
+  // routes through the same confirmation dialog. Reopens itself after a delete
+  // so several can be removed in one sitting.
+  function openManageProfiles() {
+    const profiles = Store.listProfiles();
+    const rows = profiles
+      .map(
+        (p) =>
+          '<div class="manage-row" data-id="' + p.id + '">' +
+          '<span class="manage-avatar">' + p.avatar + "</span>" +
+          '<span class="manage-name">' + escapeHtml(p.name) + "</span>" +
+          '<button class="btn danger small manage-del" data-id="' + p.id + '">Delete</button>' +
+          "</div>"
+      )
+      .join("");
+    openModal(
+      "<h3>Manage profiles</h3>" +
+        (rows
+          ? '<div class="manage-list">' + rows + "</div>"
+          : "<p>No profiles yet.</p>") +
+        '<div class="modal-actions">' +
+        '<button class="btn" id="manage-done">Done</button>' +
+        "</div>"
+    );
+    el("manage-done").addEventListener("click", closeModal);
+    el("modal").querySelectorAll(".manage-del").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const p = Store.getProfile(btn.dataset.id);
+        if (p) confirmDeleteProfile(p, openManageProfiles);
+      });
+    });
   }
 
   function openNewProfile() {
@@ -156,7 +192,10 @@
     el("new-name").focus();
   }
 
-  function confirmDeleteProfile(p) {
+  // Confirm and delete a profile. `afterDelete` runs once the profile is gone
+  // (defaults to just refreshing the grid); the manage modal passes a callback
+  // that reopens itself.
+  function confirmDeleteProfile(p, afterDelete) {
     openModal(
       "<h3>Delete profile?</h3>" +
         "<p>" + p.avatar + " <strong>" + escapeHtml(p.name) +
@@ -171,6 +210,7 @@
       Store.deleteProfile(p.id);
       closeModal();
       renderProfiles();
+      if (typeof afterDelete === "function") afterDelete();
     });
   }
 
@@ -1418,6 +1458,7 @@
   // ===========================================================================
   // NAV WIRING
   // ===========================================================================
+  el("btn-manage-profiles").addEventListener("click", openManageProfiles);
   el("btn-switch-profile").addEventListener("click", () => {
     Store.setActiveProfileId(null);
     profileId = null;
