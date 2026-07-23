@@ -177,6 +177,18 @@ h1, h2, h3 { font-weight: 700; }
 
 /* ---------- Keyer ---------- */
 .keyer-area { margin-top: 8px; }
+
+/* Hold indicator: 7 dots above the key. Yellow fills with key-hold time
+   (dit = 1 unit, dah = 3), red fills with silence (letter gap = 3, word gap =
+   7), all scaled to the chosen speed. */
+.hold-dots { display: flex; justify-content: center; gap: 12px; height: 12px; margin-bottom: 16px; }
+.hold-dot {
+  width: 11px; height: 11px; border-radius: 50%; flex: none;
+  background: var(--bg-3); border: 1px solid var(--line);
+  transition: background 0.04s linear, box-shadow 0.04s linear, border-color 0.04s linear;
+}
+.hold-dot.yellow { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 8px var(--gold); }
+.hold-dot.red { background: var(--bad); border-color: var(--bad); box-shadow: 0 0 8px var(--bad); }
 .key {
   width: 100%; height: 150px; border-radius: 22px; border: 2px solid var(--accent);
   background: linear-gradient(180deg, var(--bg-3), var(--bg-2)); color: var(--text);

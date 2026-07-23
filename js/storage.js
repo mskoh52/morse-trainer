@@ -14,8 +14,7 @@
   ];
 
   const DEFAULT_SETTINGS = {
-    charWpm: 20, // element speed (Koch)
-    codeWpm: 10, // effective/Farnsworth speed
+    wpm: 20, // single PARIS-standard speed (1 unit = 1200 / wpm ms)
     frequency: 600,
     keyThresholdMs: 180, // press >= threshold counts as a dah
     gapTimeoutMs: 900, // silence before a character auto-submits

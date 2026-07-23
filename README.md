@@ -17,8 +17,9 @@ browser's `localStorage`. Clearing site data resets everything.
 
 - **Koch method.** Characters are introduced two per lesson in Koch order, sent at
   full element speed from the first lesson. Clear a lesson at ≥90% accuracy to advance.
-- **Farnsworth timing.** Element speed and overall speed are set independently in
-  Settings, so characters stay crisp while spacing can be widened for beginners.
+- **PARIS-standard speed.** A single WPM slider in Settings sets everything on the
+  PARIS standard (dit 1 unit, dah 3, intra-character gap 1, inter-character gap 3, word
+  gap 7). A button plays the word "PARIS" at the chosen speed to preview it.
 - **Learn by sound.** Prompts play the character; the dot/dash chart is hidden by
   default (toggle in Settings). Tapping a lesson opens its presentation, where the new
   characters can be heard and reviewed.
@@ -30,10 +31,10 @@ browser's `localStorage`. Clearing site data resets everything.
 - **Spaced repetition.** Each character is an SM-2 card. Due earlier characters are
   mixed into later lessons to keep them fresh.
 - **Word practice (sending).** 10 words built from learned characters, each featuring the
-  lesson's new characters. Key the whole word at your own rhythm and press **Submit** —
-  the app decodes the entire stream at once, inferring letter boundaries from your own
-  timing (adaptive to your speed). Not graded: retry freely, move between words with the
-  arrows.
+  lesson's new characters. Key the whole word and press **Submit** — the app decodes the
+  entire stream at once, inferring letter boundaries from the gaps against the speed set
+  in Settings. Key at that speed: run letters together and the decode reflects it. Not
+  graded: retry freely, move between words with the arrows.
 - **Word comprehension (copying).** The same words, reordered: the app plays a word in
   Morse (with the signal light) and you pick it from multiple-choice buttons. Tap the
   **?** to replay. Not graded.
@@ -50,6 +51,11 @@ Tap/click (or hold Space on desktop) the key:
 After a pause the entered character is checked automatically (or press **Submit**). The
 Submit button fills up during that pause to show how long until auto-submit; keying again
 resets it.
+
+Above the key, seven dots track your timing at the chosen speed: they fill **yellow** as
+you hold (one dot per unit — a dit is one, a dah is three) and **red** during silence
+(letter gap = three, word gap = seven), so you can see whether your dits, dahs, and gaps
+are the right length.
 
 In word practice there is no auto-submit: key the whole word with natural spacing between
 letters, then press **Submit** to decode and check it.

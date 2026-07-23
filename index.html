@@ -109,6 +109,12 @@
 
       <!-- Keyer -->
       <div class="keyer-area" id="keyer-area">
+        <!-- Hold indicator: 7 units of timing. Fills yellow while the key is
+             held (dit = 1, dah = 3), red during silence (letter gap = 3,
+             word gap = 7), scaled to the chosen speed. -->
+        <div class="hold-dots" id="hold-dots" aria-hidden="true">
+          <span class="hold-dot"></span><span class="hold-dot"></span><span class="hold-dot"></span><span class="hold-dot"></span><span class="hold-dot"></span><span class="hold-dot"></span><span class="hold-dot"></span>
+        </div>
         <button class="key" id="key" aria-label="Morse key">
           <span class="key-label">TAP</span>
           <span class="key-sub">short = dit · hold = dah</span>

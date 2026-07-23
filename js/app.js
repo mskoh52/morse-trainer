@@ -600,6 +600,7 @@
     updateEntryDisplay();
     session.promptShownAt = Date.now();
     session.acceptingInput = true;
+    startHoldDots();
   }
 
   // ---- Word comprehension --------------------------------------------------
@@ -681,19 +682,12 @@
   });
 
   // Decode a keyed stream into letters. Pure and testable: dit/dah come from
-  // the press length vs `threshold` (absolute); letter boundaries are inferred
-  // from each gap relative to the learner's own dit length, so segmentation
-  // adapts to whatever speed they key at.
-  function decodeMarks(marks, gaps, threshold) {
+  // the press length vs `threshold` (absolute); letter boundaries come from each
+  // gap vs the chosen speed's unit (`unit` ms = 1200 / wpm), NOT from the
+  // learner's own rhythm. The learner is expected to key at the speed they set.
+  function decodeMarks(marks, gaps, threshold, unit) {
     if (!marks.length) return { letters: [], text: "" };
-    const dits = marks.filter((m) => m < threshold);
-    const dahs = marks.filter((m) => m >= threshold);
-    const avg = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
-    let ditUnit;
-    if (dits.length) ditUnit = avg(dits);
-    else if (dahs.length) ditUnit = avg(dahs) / 3;
-    else ditUnit = threshold / 2;
-    const letterGap = 2 * ditUnit; // > this gap = new letter (intra=1, inter=3)
+    const letterGap = 2 * unit; // > this gap = new letter (intra=1, inter=3)
 
     const letters = [];
     let current = "";
@@ -713,7 +707,8 @@
     return decodeMarks(
       session.wordMarks,
       session.wordGaps,
-      progress.settings.keyThresholdMs
+      progress.settings.keyThresholdMs,
+      1200 / progress.settings.wpm
     );
   }
 
@@ -788,6 +783,7 @@
       : "";
     session.promptShownAt = Date.now();
     session.acceptingInput = true;
+    startHoldDots();
   }
 
   // Tap the mystery "?" to replay the sound: single character in listen mode,
@@ -823,7 +819,7 @@
   function flashPatternEl(light, pattern) {
     clearFlash();
     flashLight = light;
-    const unit = 1200 / progress.settings.charWpm; // ms per dit, matches audio
+    const unit = 1200 / progress.settings.wpm; // ms per dit, matches audio
     const startDelay = 60; // roughly the audio scheduling offset
     let t = startDelay;
     pattern.split("").forEach((sym) => {
@@ -849,7 +845,7 @@
   function flashWord(light, word) {
     clearFlash();
     flashLight = light;
-    const unit = 1200 / progress.settings.charWpm;
+    const unit = 1200 / progress.settings.wpm;
     let t = 60; // audio scheduling offset
     word.split("").forEach((ch, ci) => {
       MORSE[ch].split("").forEach((sym) => {
@@ -873,6 +869,67 @@
   let gapTimer = null;
   let wordLastRelease = 0; // release time of the previous element (word mode)
 
+  // ---- Hold indicator ------------------------------------------------------
+  // Seven dots above the key show timing at the chosen speed (1 dot = 1 unit =
+  // 1200 / wpm ms). Yellow fills with how long the key is held (dit = 1, dah =
+  // 3); red fills with how long silence has lasted (letter gap = 3, word gap =
+  // 7). A rAF loop repaints while a key-input prompt is on screen.
+  let holdRaf = null;
+  let holdReleaseAt = 0; // timestamp of the last release (drives the red fill)
+  const HOLD_UNITS = 7;
+
+  function holdDotsActive() {
+    return !!(
+      session &&
+      el("screen-practice").classList.contains("active") &&
+      !el("keyer-area").classList.contains("hidden") &&
+      (session.mode === "see" || session.mode === "listen" || session.mode === "word")
+    );
+  }
+
+  function clearHoldDots() {
+    document.querySelectorAll("#hold-dots .hold-dot").forEach((d) =>
+      d.classList.remove("yellow", "red")
+    );
+  }
+
+  function renderHoldDots() {
+    const dots = document.querySelectorAll("#hold-dots .hold-dot");
+    if (!dots.length) return;
+    const unit = 1200 / progress.settings.wpm;
+    const now = Date.now();
+    let yellow = 0;
+    let red = 0;
+    if (keyDown) {
+      // Units fully held: a dit (1 unit) lights 1 dot, a dah (3 units) lights 3.
+      yellow = Math.min(HOLD_UNITS, Math.floor((now - pressStart) / unit));
+    } else if (holdReleaseAt && session && session.acceptingInput) {
+      red = Math.min(HOLD_UNITS, Math.floor((now - holdReleaseAt) / unit));
+    }
+    dots.forEach((d, i) => {
+      d.classList.toggle("yellow", i < yellow);
+      d.classList.toggle("red", yellow === 0 && i < red);
+    });
+  }
+
+  function holdLoop() {
+    if (!holdDotsActive()) {
+      holdRaf = null;
+      clearHoldDots();
+      return;
+    }
+    renderHoldDots();
+    holdRaf = requestAnimationFrame(holdLoop);
+  }
+
+  function startHoldDots() {
+    holdReleaseAt = 0;
+    clearHoldDots();
+    if (holdRaf == null && typeof requestAnimationFrame === "function") {
+      holdRaf = requestAnimationFrame(holdLoop);
+    }
+  }
+
   function onKeyPress() {
     if (!session || !session.acceptingInput) return;
     if (keyDown) return;
@@ -887,6 +944,8 @@
       gapTimer = null;
     }
     resetSubmitFill(); // a new element restarts any auto-submit countdown
+    holdReleaseAt = 0; // pressing clears the silence (red) count
+    startHoldDots();
     // The light mirrors the learner's own keying, lit while the key is held.
     clearFlash();
     el("signal-light").classList.add("on");
@@ -919,6 +978,7 @@
     el("signal-light").classList.remove("on");
     const now = Date.now();
     const held = now - pressStart;
+    holdReleaseAt = now; // start counting silence for the red fill
 
     if (session.mode === "word") {
       // Record the raw element and the gap before it; letters are decoded
@@ -1260,7 +1320,7 @@
   // ===========================================================================
   function applyAudioSettings() {
     const s = progress.settings;
-    audio.setSpeeds(s.charWpm, s.codeWpm);
+    audio.setWpm(s.wpm);
     audio.frequency = s.frequency;
     audio.muted = s.muted;
   }
@@ -1268,8 +1328,8 @@
   function renderSettings() {
     const s = progress.settings;
     el("settings-body").innerHTML =
-      settingSlider("charWpm", "Character speed", s.charWpm, 10, 30, 1, "WPM — element speed (Koch: keep this high)") +
-      settingSlider("codeWpm", "Overall speed", s.codeWpm, 5, 30, 1, "WPM — Farnsworth spacing (lower = more gap between characters)") +
+      settingSlider("wpm", "Speed", s.wpm, 5, 30, 1, "WPM — PARIS standard: dit 1 unit, dah 3, letter gap 3, word gap 7") +
+      '<button class="btn" id="settings-paris">&#9835; Play “PARIS” at this speed</button>' +
       settingSlider("frequency", "Tone pitch", s.frequency, 400, 900, 10, "Hz") +
       settingSlider("keyThresholdMs", "Dit / dah threshold", s.keyThresholdMs, 80, 400, 10, "ms — hold longer than this for a dah") +
       settingSlider("gapTimeoutMs", "Auto-submit gap", s.gapTimeoutMs, 400, 2000, 50, "ms of silence before the character is checked") +
@@ -1316,10 +1376,6 @@
         const unit = valEl.textContent.split(" ").slice(1).join(" ");
         valEl.textContent = num + " " + unit;
       }
-      // Keep codeWpm from exceeding charWpm.
-      if (key === "charWpm" && progress.settings.codeWpm > num) {
-        progress.settings.codeWpm = num;
-      }
     } else if (target.type === "checkbox") {
       progress.settings[key] = target.checked;
     }
@@ -1331,6 +1387,9 @@
     if (e.target.id === "settings-test") {
       applyAudioSettings();
       audio.playChar("K");
+    } else if (e.target.id === "settings-paris") {
+      applyAudioSettings();
+      audio.playWord("PARIS");
     } else if (e.target.id === "settings-reset") {
       confirmResetProgress();
     }

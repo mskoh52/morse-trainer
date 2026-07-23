@@ -14,9 +14,10 @@ public surface to `window`:
    - `MORSE`: character → dot/dash string (`.` dit, `-` dah).
    - `CURRICULUM`: 20 lessons, `{ id, chars: [a, b] }`, Koch order (letters, then
      numbers, then punctuation).
-   - `AudioEngine`: Web Audio sidetone. `charWpm` sets element speed; `codeWpm` is the
-     Farnsworth (spacing) speed. `playChar` / `playPattern` schedule beeps; `startTone` /
-     `stopTone` drive the live key tone.
+   - `AudioEngine`: Web Audio sidetone. A single `wpm` sets the unit length
+     (1 unit = 1200 / wpm ms) on the PARIS standard (dit 1, dah 3, intra-char gap 1,
+     inter-char gap 3, word gap 7). `playChar` / `playPattern` / `playWord` schedule
+     beeps; `startTone` / `stopTone` drive the live key tone.
 2. `js/storage.js` → `window.Store`. localStorage-backed profiles and per-profile
    progress. Keys are versioned (`morse.*.v1`). `Store.DEFAULT_SETTINGS` is the single
    source of settings defaults; `getProgress` backfills missing settings so old saves
@@ -112,13 +113,22 @@ a confirmation.
   auto-submit is on), via `scheduleGapSubmit`. That call also drives the Submit button's
   fill (`startSubmitFill`/`resetSubmitFill`) as a visual countdown to auto-submit.
 - **Word mode** records raw elements and the gap before each (`wordMarks`/`wordGaps`)
-  and never auto-submits. On Submit, `decodeMarks(marks, gaps, threshold)` decodes the
-  whole word: dit/dah by absolute press length, but letter boundaries by each gap
-  relative to the estimated dit unit (`letterGap = 2 × ditUnit`). This is why keying
-  adapts to the learner's speed and there is no delicate per-letter timeout to hit.
-  `decodeMarks` is pure and exposed via `__morseTest` for the decode tests. Note a
-  single word can't disambiguate all-equal elements by ratio alone, which is why dit/dah
-  stays on the absolute threshold rather than being inferred.
+  and never auto-submits. On Submit, `decodeMarks(marks, gaps, threshold, unit)` decodes
+  the whole word: dit/dah by absolute press length, and letter boundaries by each gap vs
+  the chosen speed's unit (`unit = 1200 / wpm`, `letterGap = 2 × unit`). Segmentation is
+  **not** adaptive: the learner is expected to key at the speed set in Settings, so
+  sloppy spacing shows up as a wrong decode rather than being silently corrected.
+  `decodeMarks` is pure and exposed via `__morseTest` for the decode tests.
+
+## Hold indicator
+
+Seven dots (`#hold-dots`) sit just above the key during any key-input prompt (see/listen/
+word). A `requestAnimationFrame` loop (`holdLoop`/`renderHoldDots`) fills them at the
+chosen speed's unit (`1200 / wpm` ms per dot): **yellow** grows with how long the key is
+held (dit ≈ 1, dah ≈ 3), **red** grows with how long silence has lasted since the last
+release (letter gap = 3, word gap = 7). `startHoldDots` (called from each prompt setup
+and on key press) resets the silence counter and kicks the loop; the loop self-stops when
+`holdDotsActive()` is false (comprehension, presentation, or off the practice screen).
 
 ## Signal light
 
@@ -126,7 +136,7 @@ Two lamps share the `.signal-light` style: `#signal-light` (beside the prompt) a
 `#teach-light` (beside the presentation character). It is a full second modality:
 
 - `flashPattern(pattern, lightId)` schedules `setTimeout`s that blink the given light
-  using the audio's unit timing (`1200 / charWpm` ms) plus a small `startDelay`.
+  using the audio's unit timing (`1200 / wpm` ms) plus a small `startDelay`.
   `playAndFlash(char, lightId)` plays and blinks together; `clearFlash()` cancels
   pending blinks and turns both lamps off.
 - Live input: `onKeyPress`/`onKeyRelease` light `#signal-light` while the key is held,

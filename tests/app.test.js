@@ -81,6 +81,8 @@ function loadCompiledApp() {
   sandbox.localStorage = makeLocalStorage();
   sandbox.setTimeout = () => 0; // tests are synchronous; drop scheduled work
   sandbox.clearTimeout = () => {};
+  sandbox.requestAnimationFrame = () => 0; // hold-dot loop never actually paints
+  sandbox.cancelAnimationFrame = () => {};
   sandbox.console = console;
   sandbox.Math = Math;
   sandbox.Date = Date;
@@ -245,14 +247,14 @@ function keyWord(word, u) {
       marks.push(sym === "-" ? 3 * u : u);
     });
   });
-  return { marks, gaps, threshold: 2 * u };
+  return { marks, gaps, threshold: 2 * u, unit: u };
 }
 
-check("decodeMarks: adaptive segmentation decodes a word keyed at any speed", () => {
+check("decodeMarks: segmentation at the chosen speed decodes a word keyed to match", () => {
   ["MARS", "SKUA", "ARM"].forEach((word) => {
     [50, 120, 300].forEach((u) => {
-      const { marks, gaps, threshold } = keyWord(word, u);
-      eq(T.decodeMarks(marks, gaps, threshold).text, word, word + " at u=" + u);
+      const { marks, gaps, threshold, unit } = keyWord(word, u);
+      eq(T.decodeMarks(marks, gaps, threshold, unit).text, word, word + " at u=" + u);
     });
   });
 });
@@ -261,9 +263,9 @@ check("decodeMarks: all-same-length elements still classify by press length", ()
   // "MM" is all dahs; "EE" is all dits. dit/dah is absolute (press length),
   // so uniform-rhythm words still decode correctly.
   const mm = keyWord("MM", 100);
-  eq(T.decodeMarks(mm.marks, mm.gaps, mm.threshold).text, "MM");
+  eq(T.decodeMarks(mm.marks, mm.gaps, mm.threshold, mm.unit).text, "MM");
   const ee = keyWord("EE", 100);
-  eq(T.decodeMarks(ee.marks, ee.gaps, ee.threshold).text, "EE");
+  eq(T.decodeMarks(ee.marks, ee.gaps, ee.threshold, ee.unit).text, "EE");
 });
 
 check("decodeMarks: a too-short gap merges letters (wrong split -> wrong text)", () => {
@@ -273,7 +275,7 @@ check("decodeMarks: a too-short gap merges letters (wrong split -> wrong text)",
   // Key "A" then "N" but with only an intra-letter gap between them.
   const marks = [u, 3 * u, 3 * u, u]; // .-  -.  => A N elements
   const gaps = [0, u, u, u]; // all one-unit gaps: no letter break
-  const out = T.decodeMarks(marks, gaps, 2 * u);
+  const out = T.decodeMarks(marks, gaps, 2 * u, u);
   eq(out.letters.length, 1, "should be read as a single run");
   assert(out.text !== "AN", "merged letters should not decode as AN");
 });

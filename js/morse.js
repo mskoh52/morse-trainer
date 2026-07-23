@@ -55,22 +55,21 @@
     return pattern.replace(/\./g, "·").replace(/-/g, "−");
   }
 
-  // Web Audio sidetone generator. Plays dits/dahs and whole characters using
-  // Farnsworth timing: character elements are sent at `charWpm`, while the gaps
-  // between characters/words are stretched to an effective `codeWpm`.
+  // Web Audio sidetone generator. Plays dits/dahs and whole characters at a
+  // single speed using the PARIS standard: dit = 1 unit, dah = 3 units,
+  // intra-character gap = 1 unit, inter-character gap = 3 units, word gap = 7
+  // units. One `wpm` sets the unit length (1 unit = 1200 / wpm ms).
   class AudioEngine {
     constructor() {
       this.ctx = null;
       this.frequency = 600;
-      this.charWpm = 20; // element speed (Koch: full speed from day one)
-      this.codeWpm = 20; // overall/Farnsworth speed (<= charWpm stretches gaps)
+      this.wpm = 20; // single PARIS-standard speed
       this.muted = false;
       this._activeStop = null; // cancel token for in-flight playback
     }
 
-    setSpeeds(charWpm, codeWpm) {
-      this.charWpm = charWpm;
-      this.codeWpm = Math.min(codeWpm, charWpm);
+    setWpm(wpm) {
+      this.wpm = wpm;
     }
 
     _ensureCtx() {
@@ -82,18 +81,9 @@
       return this.ctx;
     }
 
-    // Element durations (ms). dit = 1 unit at charWpm.
+    // Element / gap duration (ms). dit = 1 unit at the chosen wpm.
     unit() {
-      return 1200 / this.charWpm;
-    }
-
-    // Farnsworth gap unit for spacing between characters (ms).
-    _gapUnit() {
-      const dit = 1200 / this.charWpm;
-      const fdit = 1200 / this.codeWpm;
-      // Standard Farnsworth: total delay is distributed so that overall speed
-      // matches codeWpm. Simplified: gap unit scales with the slower speed.
-      return Math.max(dit, fdit);
+      return 1200 / this.wpm;
     }
 
     // Play a short beep of `units` length starting at audio-time `at`.
