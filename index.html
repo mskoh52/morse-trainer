@@ -77,6 +77,25 @@
           <button class="teach-arrow" id="teach-next" aria-label="Next character">&#8250;</button>
         </div>
         <div class="teach-dots" id="teach-dots"></div>
+
+        <!-- Free-practice keyer: identical to the graded keyer (same key and
+             timing dots). Key a character and it decodes on its own after a
+             character-separation gap of silence. -->
+        <div class="teach-practice" id="teach-practice">
+          <div class="teach-practice-head">Try it — key one of the new characters</div>
+          <div class="teach-practice-display">
+            <div class="tp-letter" id="tp-letter">&#160;</div>
+            <div class="tp-entry" id="tp-entry">&#160;</div>
+          </div>
+          <div class="hold-dots" id="tp-hold-dots" aria-hidden="true">
+            <span class="hold-dot"></span><span class="hold-dot"></span><span class="hold-dot"></span><span class="hold-dot"></span><span class="hold-dot"></span><span class="hold-dot"></span><span class="hold-dot"></span>
+          </div>
+          <button class="key" id="tp-key" aria-label="Practice Morse key">
+            <span class="key-label">TAP</span>
+            <span class="key-sub">short = dit · hold = dah</span>
+          </button>
+        </div>
+
         <div class="teach-actions" id="teach-actions">
           <button class="btn primary teach-start" id="teach-start-chars">Character practice &rarr;</button>
           <button class="btn teach-start" id="teach-start-words">Word practice (send) &rarr;</button>

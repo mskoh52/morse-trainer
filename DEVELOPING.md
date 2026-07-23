@@ -122,13 +122,37 @@ a confirmation.
 
 ## Hold indicator
 
-Seven dots (`#hold-dots`) sit just above the key during any key-input prompt (see/listen/
-word). A `requestAnimationFrame` loop (`holdLoop`/`renderHoldDots`) fills them at the
-chosen speed's unit (`1200 / wpm` ms per dot): **yellow** grows with how long the key is
-held (dit ≈ 1, dah ≈ 3), **red** grows with how long silence has lasted since the last
-release (letter gap = 3, word gap = 7). `startHoldDots` (called from each prompt setup
-and on key press) resets the silence counter and kicks the loop; the loop self-stops when
-`holdDotsActive()` is false (comprehension, presentation, or off the practice screen).
+Seven dots fill at the chosen speed's unit (`1200 / wpm` ms per dot): **yellow** grows
+with how long the key is held (dit ≈ 1, dah ≈ 3), **red** grows with how long silence has
+lasted since the last release (letter gap = 3, word gap = 7). A single
+`requestAnimationFrame` loop (`holdLoop` → `renderHoldDots` → `paintDots`) drives **both**
+keyers — the graded prompt's `#hold-dots` and the free-practice `#tp-hold-dots` — since
+only one is ever on screen at a time, so they look and behave identically. `renderHoldDots`
+picks the target based on `teachPhaseVisible()` vs `holdDotsActive()` and reads that
+keyer's own state (`keyDown`/`pressStart`/`holdReleaseAt` or `tpDown`/`tpPressStart`/
+`tpReleaseAt`). `startHoldLoop` kicks the shared loop; it self-stops when neither keyer is
+active.
+
+## Presentation free-practice keyer
+
+The presentation hub embeds a standalone keyer (`#teach-practice`, below the character
+carousel and above the practice-mode buttons) for trying the new characters. It uses the
+**same key and timing dots as the graded keyer** so both look identical, but is fully
+independent of the graded `session` — its own state (`tpEntry`/`tpDown`/`tpPressStart`/
+`tpReleaseAt` and the `tpGapTimer`/`tpClearTimer` timers) lives in the `tp*` functions and
+it never touches lesson progress or SRS. `tpFinalize` fires after a character-separation
+gap of silence (3 units = `3 × 1200/wpm` ms), decodes via `MORSE_REVERSE`, shows the
+letter for 2 s, then blanks. `tpReset` (called on entering the hub via `startTeach`, and
+whenever the hub is left for a practice mode) cancels timers and any live tone. On desktop
+the spacebar routes to this keyer while the hub is visible (`teachPhaseVisible`) and to
+the main keyer otherwise.
+
+**Shared code between the two keyers.** Beyond the hold-dot loop above, both go through
+`symbolFor(heldMs)` for the dit/dah split and `bindKey(el, onDown, onUp, isDown)` for
+pointer wiring (and long-hold context-menu suppression). The behavior that differs — the
+graded keyer feeds `session` and auto-submits via `gapTimeoutMs`; the free-practice keyer
+is standalone and auto-decodes at the character-separation gap — stays in their separate
+press/release handlers.
 
 ## Signal light
 

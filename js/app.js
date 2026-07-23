@@ -392,6 +392,7 @@
   function startTeach(fromReview) {
     session.acceptingInput = false;
     session.teachIndex = 0;
+    tpReset();
     setPracticeUiVisible(false);
     el("teach-phase").classList.remove("hidden");
     el("teach-label").textContent =
@@ -469,6 +470,7 @@
     session.perChar = {};
     session.target = null;
     session.queue = buildQueue(session.lessonId);
+    tpReset();
     el("teach-phase").classList.add("hidden");
     setPracticeUiVisible(true);
     setInputMode("key");
@@ -484,6 +486,7 @@
     session.mode = "word";
     session.words = words.slice();
     session.wordIndex = 0;
+    tpReset();
     el("teach-phase").classList.add("hidden");
     setPracticeUiVisible(true);
     setInputMode("key");
@@ -500,6 +503,7 @@
     session.mode = "comprehend";
     session.words = shuffleNoAdjacentRepeat(words.slice());
     session.wordIndex = 0;
+    tpReset();
     el("teach-phase").classList.add("hidden");
     setPracticeUiVisible(true);
     setInputMode("choice");
@@ -524,6 +528,7 @@
 
   // Resume the practice that was paused when the learner stepped back.
   function resumePractice() {
+    tpReset();
     el("teach-phase").classList.add("hidden");
     setPracticeUiVisible(true);
     if (session.kind === "words") {
@@ -913,9 +918,11 @@
   // Seven dots above the key show timing at the chosen speed (1 dot = 1 unit =
   // 1200 / wpm ms). Yellow fills with how long the key is held (dit = 1, dah =
   // 3); red fills with how long silence has lasted (letter gap = 3, word gap =
-  // 7). A rAF loop repaints while a key-input prompt is on screen.
+  // 7). A single rAF loop drives both keyers — the graded prompt (`#hold-dots`)
+  // and the presentation free-practice keyer (`#tp-hold-dots`) — since only one
+  // is ever on screen at a time. Both look and behave identically.
   let holdRaf = null;
-  let holdReleaseAt = 0; // timestamp of the last release (drives the red fill)
+  let holdReleaseAt = 0; // last release on the graded keyer (drives its red fill)
   const HOLD_UNITS = 7;
 
   function holdDotsActive() {
@@ -927,24 +934,24 @@
     );
   }
 
-  function clearHoldDots() {
-    document.querySelectorAll("#hold-dots .hold-dot").forEach((d) =>
+  function clearDots(selector) {
+    document.querySelectorAll(selector).forEach((d) =>
       d.classList.remove("yellow", "red")
     );
   }
 
-  function renderHoldDots() {
-    const dots = document.querySelectorAll("#hold-dots .hold-dot");
+  // Light `selector`'s dots: yellow up to `downSince` (units held), else red up
+  // to `silenceSince` (units of silence). Pass null to skip a fill.
+  function paintDots(selector, unit, now, downSince, silenceSince) {
+    const dots = document.querySelectorAll(selector);
     if (!dots.length) return;
-    const unit = 1200 / progress.settings.wpm;
-    const now = Date.now();
     let yellow = 0;
     let red = 0;
-    if (keyDown) {
+    if (downSince != null) {
       // Units fully held: a dit (1 unit) lights 1 dot, a dah (3 units) lights 3.
-      yellow = Math.min(HOLD_UNITS, Math.floor((now - pressStart) / unit));
-    } else if (holdReleaseAt && session && session.acceptingInput) {
-      red = Math.min(HOLD_UNITS, Math.floor((now - holdReleaseAt) / unit));
+      yellow = Math.min(HOLD_UNITS, Math.floor((now - downSince) / unit));
+    } else if (silenceSince) {
+      red = Math.min(HOLD_UNITS, Math.floor((now - silenceSince) / unit));
     }
     dots.forEach((d, i) => {
       d.classList.toggle("yellow", i < yellow);
@@ -952,22 +959,49 @@
     });
   }
 
+  function renderHoldDots() {
+    const unit = 1200 / progress.settings.wpm;
+    const now = Date.now();
+    if (teachPhaseVisible()) {
+      paintDots(
+        "#tp-hold-dots .hold-dot",
+        unit,
+        now,
+        tpDown ? tpPressStart : null,
+        tpDown ? 0 : tpReleaseAt
+      );
+    } else if (holdDotsActive()) {
+      paintDots(
+        "#hold-dots .hold-dot",
+        unit,
+        now,
+        keyDown ? pressStart : null,
+        keyDown || !(session && session.acceptingInput) ? 0 : holdReleaseAt
+      );
+    }
+  }
+
   function holdLoop() {
-    if (!holdDotsActive()) {
+    if (!(teachPhaseVisible() || holdDotsActive())) {
       holdRaf = null;
-      clearHoldDots();
+      clearDots("#hold-dots .hold-dot");
+      clearDots("#tp-hold-dots .hold-dot");
       return;
     }
     renderHoldDots();
     holdRaf = requestAnimationFrame(holdLoop);
   }
 
-  function startHoldDots() {
-    holdReleaseAt = 0;
-    clearHoldDots();
+  function startHoldLoop() {
     if (holdRaf == null && typeof requestAnimationFrame === "function") {
       holdRaf = requestAnimationFrame(holdLoop);
     }
+  }
+
+  function startHoldDots() {
+    holdReleaseAt = 0;
+    clearDots("#hold-dots .hold-dot");
+    startHoldLoop();
   }
 
   function onKeyPress() {
@@ -1031,10 +1065,24 @@
       return;
     }
 
-    const symbol = held >= progress.settings.keyThresholdMs ? "-" : ".";
-    session.entry += symbol;
+    session.entry += symbolFor(held);
     updateEntryDisplay();
     scheduleGapSubmit();
+  }
+
+  // Classify a key press by its hold time. Shared by both keyers.
+  function symbolFor(heldMs) {
+    return heldMs >= progress.settings.keyThresholdMs ? "-" : ".";
+  }
+
+  // Wire a key element's pointer events (and suppress the long-hold context
+  // menu). Both keyers share this; each supplies its own press/release/isDown.
+  function bindKey(keyEl, onDown, onUp, isDown) {
+    keyEl.addEventListener("pointerdown", (e) => { e.preventDefault(); onDown(); });
+    keyEl.addEventListener("pointerup", (e) => { e.preventDefault(); onUp(); });
+    keyEl.addEventListener("pointerleave", () => { if (isDown()) onUp(); });
+    keyEl.addEventListener("pointercancel", () => { if (isDown()) onUp(); });
+    keyEl.addEventListener("contextmenu", (e) => e.preventDefault());
   }
 
   function resetWordAttempt() {
@@ -1127,36 +1175,27 @@
     }
   }
 
-  el("key").addEventListener("pointerdown", (e) => {
-    e.preventDefault();
-    onKeyPress();
-  });
-  el("key").addEventListener("pointerup", (e) => {
-    e.preventDefault();
-    onKeyRelease();
-  });
-  el("key").addEventListener("pointerleave", () => {
-    if (keyDown) onKeyRelease();
-  });
-  el("key").addEventListener("pointercancel", () => {
-    if (keyDown) onKeyRelease();
-  });
-  // Suppress the context menu that a long touch-hold triggers.
-  el("key").addEventListener("contextmenu", (e) => e.preventDefault());
+  bindKey(el("key"), onKeyPress, onKeyRelease, () => keyDown);
 
-  // Desktop: spacebar acts as the key.
+  // Desktop: spacebar acts as the key. On the presentation hub it drives the
+  // free-practice keyer; during a prompt it drives the main keyer.
+  function teachPhaseVisible() {
+    return !el("teach-phase").classList.contains("hidden");
+  }
   document.addEventListener("keydown", (e) => {
     if (e.code !== "Space") return;
     if (!el("screen-practice").classList.contains("active")) return;
     if (e.repeat) return;
     e.preventDefault();
-    onKeyPress();
+    if (teachPhaseVisible()) tpPress();
+    else onKeyPress();
   });
   document.addEventListener("keyup", (e) => {
     if (e.code !== "Space") return;
     if (!el("screen-practice").classList.contains("active")) return;
     e.preventDefault();
-    onKeyRelease();
+    if (teachPhaseVisible()) tpRelease();
+    else onKeyRelease();
   });
 
   el("btn-clear").addEventListener("click", () => {
@@ -1178,6 +1217,92 @@
     if (session.mode === "word") submitWord();
     else submitEntry();
   });
+
+  // ---- Presentation free-practice keyer ------------------------------------
+  // A standalone keyer on the presentation hub for trying the new characters.
+  // It decodes on its own: after a character-separation gap of silence the keyed
+  // pattern is resolved to a letter, shown for 2 s (or until keying resumes).
+  // Independent of the graded `session`, so it never touches lesson progress.
+  let tpEntry = "";
+  let tpDown = false;
+  let tpPressStart = 0;
+  let tpReleaseAt = 0; // last release (drives this keyer's red fill)
+  let tpGapTimer = null;
+  let tpClearTimer = null;
+  let tpShowing = false; // a decoded letter is currently on screen
+
+  function tpBlank() {
+    el("tp-letter").innerHTML = "&#160;";
+    el("tp-entry").innerHTML = "&#160;";
+  }
+
+  // Cancel timers, stop any tone, and clear the display. Called on entering the
+  // hub and whenever the hub is left for a practice mode.
+  function tpReset() {
+    if (tpDown) {
+      audio.stopTone();
+      tpDown = false;
+    }
+    el("tp-key").classList.remove("active");
+    if (tpGapTimer) { clearTimeout(tpGapTimer); tpGapTimer = null; }
+    if (tpClearTimer) { clearTimeout(tpClearTimer); tpClearTimer = null; }
+    tpEntry = "";
+    tpReleaseAt = 0;
+    tpShowing = false;
+    tpBlank();
+    clearDots("#tp-hold-dots .hold-dot");
+    startHoldLoop(); // paint the dots while the hub is on screen
+  }
+
+  function tpPress() {
+    if (tpDown) return;
+    if (tpGapTimer) { clearTimeout(tpGapTimer); tpGapTimer = null; }
+    if (tpClearTimer) { clearTimeout(tpClearTimer); tpClearTimer = null; }
+    // Keying again clears a previously decoded letter and starts fresh.
+    if (tpShowing) {
+      tpShowing = false;
+      tpEntry = "";
+      tpBlank();
+    }
+    tpDown = true;
+    tpReleaseAt = 0; // pressing clears the silence (red) count
+    tpPressStart = Date.now();
+    audio.startTone();
+    el("tp-key").classList.add("active");
+  }
+
+  function tpRelease() {
+    if (!tpDown) return;
+    tpDown = false;
+    audio.stopTone();
+    el("tp-key").classList.remove("active");
+    const now = Date.now();
+    tpReleaseAt = now; // start counting silence for the red fill
+    tpEntry += symbolFor(now - tpPressStart);
+    el("tp-entry").textContent = patternToText(tpEntry);
+    el("tp-letter").innerHTML = "&#160;";
+    // Terminate the character once silence reaches the inter-character gap
+    // (3 units at the chosen speed).
+    const charSepMs = 3 * (1200 / progress.settings.wpm);
+    tpGapTimer = setTimeout(tpFinalize, charSepMs);
+  }
+
+  function tpFinalize() {
+    tpGapTimer = null;
+    if (!tpEntry) return;
+    el("tp-letter").textContent = MORSE_REVERSE[tpEntry] || "?";
+    el("tp-entry").textContent = patternToText(tpEntry);
+    tpEntry = "";
+    tpShowing = true;
+    // Hold the letter for 2 s, then blank (unless keying resumes first).
+    tpClearTimer = setTimeout(() => {
+      tpClearTimer = null;
+      tpShowing = false;
+      tpBlank();
+    }, 2000);
+  }
+
+  bindKey(el("tp-key"), tpPress, tpRelease, () => tpDown);
 
   // ---- Session end ---------------------------------------------------------
   // Only character practice ends in a summary. Word practice is exploratory:

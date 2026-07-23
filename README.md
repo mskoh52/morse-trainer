@@ -64,6 +64,9 @@ letters, then press **Submit** to decode and check it.
 
 - Tapping a lesson opens its **presentation** (the new characters), then offers
   **Character practice** and (once passed) **Word practice**.
+- The presentation includes a **free-practice keyer**: key a character and it shows the
+  letter you sent, decoding on its own after a character-separation pause and holding the
+  result for two seconds. It is ungraded and does not affect progress.
 - Passing character practice (≥90%) returns you to the lesson, unlocks its word practice
   bonus, and reveals a **Next lesson** button.
 - Cleared lessons stay open for review.
