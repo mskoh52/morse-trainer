@@ -64,6 +64,7 @@
   let profileId = null;
   let progress = null;
   let session = null; // active practice session
+  let advanceTimer = null; // between-prompt delay timer (char practice)
 
   const $ = (sel) => document.querySelector(sel);
   const el = (id) => document.getElementById(id);
@@ -331,11 +332,16 @@
   function startSession(lessonId) {
     const lesson = CURRICULUM[lessonId - 1];
 
+    if (advanceTimer) {
+      clearTimeout(advanceTimer);
+      advanceTimer = null;
+    }
     session = {
       lessonId,
       kind: null, // "chars" or "words" once a practice mode is chosen
       queue: [], // character-drill prompts (built when char practice starts)
       index: 0,
+      advancePending: false, // a next-prompt advance fired while on the hub
       results: [], // { char, correct }
       perChar: {}, // char -> { seen, correct }
       teachChars: lesson.chars.slice(), // navigable during the presentation
@@ -469,6 +475,11 @@
     session.results = [];
     session.perChar = {};
     session.target = null;
+    session.advancePending = false;
+    if (advanceTimer) {
+      clearTimeout(advanceTimer);
+      advanceTimer = null;
+    }
     session.queue = buildQueue(session.lessonId);
     tpReset();
     el("teach-phase").classList.add("hidden");
@@ -539,7 +550,16 @@
       showComprehension();
     } else {
       setInputMode("key");
-      showCurrentPrompt();
+      if (session.advancePending) {
+        // A between-prompt advance fired while the hub was up: present it now.
+        session.advancePending = false;
+        nextPrompt();
+      } else if (advanceTimer == null) {
+        // No advance in flight: resume the current, still-unanswered prompt.
+        showCurrentPrompt();
+      }
+      // Otherwise an advance is still scheduled; its timer will present the next
+      // prompt. The lingering feedback stays visible until then.
     }
   }
 
@@ -560,17 +580,6 @@
   el("word-prev").addEventListener("click", () => goToWord(-1));
   el("word-next").addEventListener("click", () => goToWord(1));
 
-  // Step back to the presentation from an active practice at any time.
-  el("btn-review-chars").addEventListener("click", () => {
-    if (!session || !el("screen-practice").classList.contains("active")) return;
-    if (!el("teach-phase").classList.contains("hidden")) return; // already there
-    if (gapTimer) {
-      clearTimeout(gapTimer);
-      gapTimer = null;
-    }
-    if (keyDown) onKeyRelease();
-    startTeach(true);
-  });
   el("teach-dots").addEventListener("click", (e) => {
     const dot = e.target.closest(".teach-dot");
     if (!dot || !session) return;
@@ -596,6 +605,14 @@
 
   // Advance to the next queued prompt (picks a new target).
   function nextPrompt() {
+    if (!session) return; // session was left before the timer fired
+    // If the learner stepped back to the presentation, hold the next prompt
+    // until they return. resumePractice replays it; the scheduling timer has
+    // already run, so only the visible/audible presentation is deferred.
+    if (teachPhaseVisible()) {
+      session.advancePending = true;
+      return;
+    }
     if (session.index >= session.queue.length) {
       finishSession();
       return;
@@ -1154,7 +1171,10 @@
     // Linger longer on listen prompts so the just-revealed character registers.
     const listen = session.mode === "listen";
     const delay = correct ? (listen ? 1400 : 750) : (listen ? 2400 : 1600);
-    setTimeout(nextPrompt, delay);
+    advanceTimer = setTimeout(() => {
+      advanceTimer = null;
+      nextPrompt();
+    }, delay);
   }
 
   function showAnswerFeedback(correct, target) {
@@ -1404,13 +1424,36 @@
   }
 
   function goHome() {
+    if (advanceTimer) {
+      clearTimeout(advanceTimer);
+      advanceTimer = null;
+    }
     session = null;
     renderHome();
     showScreen("home");
   }
 
-  // Leaving mid-session is safe: each answer is persisted as it happens.
-  el("btn-quit-practice").addEventListener("click", goHome);
+  // Back button (X). In a drill it steps back to the lesson's presentation hub;
+  // from the hub it leaves to the lesson list. Leaving mid-session is safe —
+  // each answer is persisted as it happens.
+  el("btn-quit-practice").addEventListener("click", () => {
+    if (!session) {
+      goHome();
+      return;
+    }
+    // Already on the hub → go out to the lesson list.
+    if (!el("teach-phase").classList.contains("hidden")) {
+      goHome();
+      return;
+    }
+    // In a drill → step back to the hub, pausing the run (resume from there).
+    if (gapTimer) {
+      clearTimeout(gapTimer);
+      gapTimer = null;
+    }
+    if (keyDown) onKeyRelease();
+    startTeach(true);
+  });
 
   // ===========================================================================
   // CHARACTER REFERENCE
@@ -1599,6 +1642,49 @@
     renderHome();
     showScreen("home");
   });
+
+  // Intro-to-Morse popup, opened from the lesson list.
+  el("btn-intro").addEventListener("click", openIntro);
+  function openIntro() {
+    openModal(
+      "<h3>A quick intro to Morse code</h3>" +
+      '<div class="intro-body">' +
+        "<p>Morse code sends text as two sounds — short beeps and long ones. " +
+        "Samuel Morse and Alfred Vail devised it in the 1830s–40s for the electric " +
+        "telegraph; the first long line's opening message (1844) was " +
+        "<em>“What hath God wrought”</em>. It carried the world's news for a century " +
+        "and is still used today by amateur-radio operators and as a fallback signal.</p>" +
+        "<p><strong>Dits &amp; dahs:</strong> every character is a short pattern of a " +
+        "<strong>dit</strong> (·, a short beep) and a <strong>dah</strong> (−, three " +
+        "times as long). For example <strong>E</strong> is ·, <strong>T</strong> is −, " +
+        "and <strong>A</strong> is ·−.</p>" +
+        "<p><strong>Timing</strong> is built on one <em>unit</em> of time:</p>" +
+        '<ul class="intro-timing">' +
+          "<li>dit = 1 unit,&nbsp; dah = 3 units</li>" +
+          "<li>gap within a character = 1 unit</li>" +
+          "<li>gap between characters = 3 units</li>" +
+          "<li>gap between words = 7 units</li>" +
+        "</ul>" +
+        "<p><strong>The lights help you feel that timing.</strong> The round " +
+        "<strong>lamp</strong> next to a character blinks its dits and dahs in step with " +
+        "the sound, so the code is visible as well as audible. Above the input key, the " +
+        "<strong>row of dots</strong> is a timing ruler: while you hold the key they fill " +
+        "<span class=\"intro-yellow\">yellow</span> one per unit (a dit lights 1, a dah " +
+        "3), and during silence they fill <span class=\"intro-red\">red</span> (3 dots = " +
+        "a gap between characters, 7 = a gap between words).</p>" +
+        "<p>Learn each character at <strong>full speed</strong>, so you know it by its " +
+        "rhythm as a single sound rather than by counting beeps. The speed can be " +
+        "adjusted anytime in <strong>Settings</strong>.</p>" +
+        '<p class="intro-signoff">Have fun!' +
+          '<span class="intro-morse">···· ·− ···− ·&nbsp;&nbsp;&nbsp;··−· ··− −·</span>' +
+        "</p>" +
+      "</div>" +
+      '<div class="modal-actions">' +
+        '<button class="btn primary" id="intro-close">Got it</button>' +
+      "</div>"
+    );
+    el("intro-close").addEventListener("click", closeModal);
+  }
 
   // ---- Utilities -----------------------------------------------------------
   function escapeHtml(str) {

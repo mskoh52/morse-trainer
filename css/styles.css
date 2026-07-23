@@ -331,6 +331,24 @@ h1, h2, h3 { font-weight: 700; }
 .avatar-choice { font-size: 1.6rem; background: var(--bg-3); border: 2px solid transparent; border-radius: 12px; padding: 6px 0; cursor: pointer; }
 .avatar-choice.selected { border-color: var(--accent); background: rgba(91, 140, 255, 0.15); }
 
+/* ---------- Intro-to-Morse popup ---------- */
+.intro-body { max-height: 60vh; overflow-y: auto; margin: 4px -6px 0; padding: 0 6px; }
+.intro-body p { color: var(--muted); line-height: 1.5; font-size: 0.9rem; margin: 0 0 10px; }
+.intro-body strong { color: var(--text); }
+.intro-body em { color: var(--text); font-style: normal; }
+.intro-timing {
+  margin: 0 0 10px; padding: 10px 12px 10px 30px; list-style: disc;
+  background: var(--bg-3); border: 1px solid var(--line); border-radius: 12px;
+  color: var(--muted); font-size: 0.88rem; line-height: 1.7;
+}
+.intro-signoff {
+  text-align: center; color: var(--accent) !important; font-weight: 700;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace; margin-top: 4px !important;
+}
+.intro-morse { display: block; margin-top: 6px; font-size: 0.95rem; letter-spacing: 0.06em; }
+.intro-yellow { color: var(--gold); font-weight: 700; }
+.intro-red { color: var(--bad); font-weight: 700; }
+
 /* ---------- Manage profiles ---------- */
 .manage-list { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
 .manage-row { display: flex; align-items: center; gap: 12px; background: var(--bg-3); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }

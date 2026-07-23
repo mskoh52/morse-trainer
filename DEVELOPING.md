@@ -77,10 +77,20 @@ calls `finishSession` or affects lesson progression.
 On a pass, the character summary offers **Next lesson** (only shown when passed) and
 **Back to lesson** (re-enters the hub, where word practice is now unlocked).
 
-The **?** header button calls `startTeach(true)` to step back to the presentation
-mid-practice; its single **Back to practice** button (`resumePractice`) resumes the
-current prompt without advancing. Each mode is independent — there is no automatic
-hand-off from characters to words.
+The practice header's back button (**✕**, `btn-quit-practice`) is a hierarchical back: in
+a drill it calls `startTeach(true)` to step back to the presentation hub (pausing the
+run); from the hub it calls `goHome` to leave to the lesson list. Its single **Back to
+practice** button (`resumePractice`) resumes the current prompt without advancing. Each
+mode is independent — there is no automatic hand-off from characters to words. (An intro-
+to-Morse popup lives on the lesson list instead — `btn-intro` → `openIntro`.)
+
+Stepping back mid-drill must not let a queued prompt render underneath the presentation.
+The between-prompt delay (`advanceTimer`, set in `submitEntry`) keeps running, but when it
+fires while the hub is visible (`teachPhaseVisible()`), `nextPrompt` just sets
+`session.advancePending` and returns instead of presenting. `resumePractice` then presents
+the held prompt on return (or, if the delay is still counting, leaves the lingering
+feedback and lets the timer present it). `startSession`/`beginCharacterPractice`/`goHome`
+clear `advanceTimer` so it can never fire against a torn-down or restarted session.
 
 ## Lesson pass / progression
 

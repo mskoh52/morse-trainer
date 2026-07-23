@@ -72,8 +72,11 @@ letters, then press **Submit** to decode and check it.
 - Cleared lessons stay open for review.
 - Future lessons are locked; tapping a locked lesson offers to unlock it after a
   confirmation dialog.
-- The **?** button in the practice header steps back to the presentation at any time;
-  "Back to practice" returns and resumes the current prompt.
+- The back button (**✕**) in the practice header steps back to the lesson's presentation
+  during a drill (pausing it — "Back to practice" resumes the current prompt); from the
+  presentation it leaves to the lesson list.
+- The **?** button on the lesson list opens a short intro to Morse code — a little
+  history, how dits and dahs and their timing work, and how to get started.
 
 ## Profiles
 
