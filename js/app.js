@@ -352,7 +352,7 @@
       entry: "", // dits/dahs entered so far
       locked: false, // true while showing feedback / between prompts
       acceptingInput: false, // true only while a real prompt is on screen
-      inPractice: false, // a practice run has started (enables resume)
+      reviewInProgress: false, // a character review is started and resumable
       words: [], // words in the active word/comprehension run
       wordIndex: 0,
       wordMarks: [], // durations (ms) of each keyed element in the current word
@@ -365,7 +365,7 @@
     el("practice-title").textContent = "Lesson " + lessonId;
     hideSummary();
     showScreen("practice");
-    startTeach(false); // land on the presentation hub
+    startTeach(); // land on the presentation hub
   }
 
   // Toggle the practice controls (prompt, entry, keyer, choices) as a group.
@@ -395,7 +395,7 @@
   // Show the presentation. `fromReview` = the learner stepped back from an
   // active practice (offer Resume); otherwise this is the lesson's entry hub
   // (offer the Character / Word practice choices).
-  function startTeach(fromReview) {
+  function startTeach() {
     session.acceptingInput = false;
     session.teachIndex = 0;
     tpReset();
@@ -404,9 +404,10 @@
     el("teach-label").textContent =
       session.teachChars.length > 1 ? "New characters" : "New character";
 
-    const resuming = fromReview && session.inPractice;
-    el("teach-actions").classList.toggle("hidden", resuming);
-    el("teach-resume").classList.toggle("hidden", !resuming);
+    // The three practice-mode buttons are always shown. The review button
+    // offers to resume an in-progress review, or start one fresh.
+    el("teach-start-chars").textContent =
+      (session.reviewInProgress ? "Resume review" : "Review") + " →";
 
     // Word practice unlocks once the first vowels arrive and words are spellable.
     // Word practice is a bonus: it unlocks only once this lesson's character
@@ -417,12 +418,12 @@
       pickWords(session.lessonId, 1).length > 0;
     const wordsReady = charsPassed && hasWords;
     // Both word modes share gating: hidden entirely before lesson 3, then shown
-    // but locked until this lesson's character practice is passed.
+    // but locked until this lesson's review is passed.
     ["teach-start-words", "teach-start-listen"].forEach((id) => {
       const btn = el(id);
       btn.classList.toggle("hidden", session.lessonId < WORD_START_LESSON);
       btn.disabled = !wordsReady;
-      btn.title = wordsReady ? "" : "Pass character practice to unlock";
+      btn.title = wordsReady ? "" : "Pass the review to unlock";
     });
 
     renderTeachDots();
@@ -466,10 +467,10 @@
     renderTeachChar(true);
   }
 
-  // Start character practice fresh (rebuilds the drill queue).
+  // Start character review fresh (rebuilds the drill queue).
   function beginCharacterPractice() {
     session.kind = "chars";
-    session.inPractice = true;
+    session.reviewInProgress = true;
     session.mode = "see";
     session.index = 0;
     session.results = [];
@@ -493,7 +494,6 @@
     const words = getLessonWords();
     if (!words.length) return;
     session.kind = "words";
-    session.inPractice = true;
     session.mode = "word";
     session.words = words.slice();
     session.wordIndex = 0;
@@ -510,7 +510,6 @@
     const words = getLessonWords();
     if (!words.length) return;
     session.kind = "comprehend";
-    session.inPractice = true;
     session.mode = "comprehend";
     session.words = shuffleNoAdjacentRepeat(words.slice());
     session.wordIndex = 0;
@@ -537,30 +536,22 @@
     else showWordPrompt();
   }
 
-  // Resume the practice that was paused when the learner stepped back.
-  function resumePractice() {
+  // Resume an in-progress character review where the learner left off (they
+  // stepped back to the hub, possibly via another practice mode). The drill's
+  // queue/index/results are preserved; only target and mode may have been
+  // clobbered by word practice, so present the current queue position afresh.
+  function resumeReview() {
+    session.kind = "chars";
+    session.advancePending = false;
+    if (advanceTimer) {
+      clearTimeout(advanceTimer);
+      advanceTimer = null;
+    }
     tpReset();
     el("teach-phase").classList.add("hidden");
     setPracticeUiVisible(true);
-    if (session.kind === "words") {
-      setInputMode("key");
-      showWordPrompt();
-    } else if (session.kind === "comprehend") {
-      setInputMode("choice");
-      showComprehension();
-    } else {
-      setInputMode("key");
-      if (session.advancePending) {
-        // A between-prompt advance fired while the hub was up: present it now.
-        session.advancePending = false;
-        nextPrompt();
-      } else if (advanceTimer == null) {
-        // No advance in flight: resume the current, still-unanswered prompt.
-        showCurrentPrompt();
-      }
-      // Otherwise an advance is still scheduled; its timer will present the next
-      // prompt. The lingering feedback stays visible until then.
-    }
+    setInputMode("key");
+    nextPrompt(); // presents queue[index] — the current unanswered prompt
   }
 
   // "Hear it" replays the current character; it does not advance.
@@ -569,14 +560,17 @@
   });
   el("teach-prev").addEventListener("click", () => teachGo(-1));
   el("teach-next").addEventListener("click", () => teachGo(1));
-  el("teach-start-chars").addEventListener("click", beginCharacterPractice);
+  // The review button resumes an in-progress review, else starts one fresh.
+  el("teach-start-chars").addEventListener("click", () => {
+    if (session && session.reviewInProgress) resumeReview();
+    else beginCharacterPractice();
+  });
   el("teach-start-words").addEventListener("click", () => {
     if (!el("teach-start-words").disabled) beginWordPractice();
   });
   el("teach-start-listen").addEventListener("click", () => {
     if (!el("teach-start-listen").disabled) beginComprehension();
   });
-  el("teach-resume").addEventListener("click", resumePractice);
   el("word-prev").addEventListener("click", () => goToWord(-1));
   el("word-next").addEventListener("click", () => goToWord(1));
 
@@ -607,8 +601,8 @@
   function nextPrompt() {
     if (!session) return; // session was left before the timer fired
     // If the learner stepped back to the presentation, hold the next prompt
-    // until they return. resumePractice replays it; the scheduling timer has
-    // already run, so only the visible/audible presentation is deferred.
+    // until they resume the review (Resume review → resumeReview replays it).
+    // The scheduling timer already ran; only the presentation is deferred.
     if (teachPhaseVisible()) {
       session.advancePending = true;
       return;
@@ -1325,10 +1319,11 @@
   bindKey(el("tp-key"), tpPress, tpRelease, () => tpDown);
 
   // ---- Session end ---------------------------------------------------------
-  // Only character practice ends in a summary. Word practice is exploratory:
+  // Only the review ends in a summary. Word practice is exploratory:
   // the learner leaves via the back button, so it never reaches finishSession.
   function finishSession() {
     clearFlash();
+    session.reviewInProgress = false; // the review drill is complete
     el("practice-progress-bar").style.width = "100%";
 
     const total = session.results.length;
@@ -1452,7 +1447,7 @@
       gapTimer = null;
     }
     if (keyDown) onKeyRelease();
-    startTeach(true);
+    startTeach();
   });
 
   // ===========================================================================

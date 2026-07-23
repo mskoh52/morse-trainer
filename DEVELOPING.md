@@ -50,14 +50,17 @@ One mutable object per practice run. Key fields:
   practice state (`wordMarks`/`wordGaps` are the raw keyed stream decoded on Submit).
 
 Flow: tapping a lesson calls `startSession`, which always lands on the **presentation
-hub** (`startTeach(false)`). The hub carousel shows the lesson's new characters and
-offers two choices:
+hub** (`startTeach`). The hub carousel shows the lesson's new characters and always shows
+all three mode buttons:
 
-- **Character practice** (`beginCharacterPractice`) — builds a fresh `queue` and runs
+- **Review** (`beginCharacterPractice`, kind `"chars"`) — builds a fresh `queue` and runs
   `nextPrompt` over it (see/listen prompts). `finishSession` grades character accuracy,
-  handles the ≥90% pass, and advances the lesson.
+  handles the ≥90% pass, and advances the lesson. The button is labelled **Review**, or
+  **Resume review** while a review is in progress (`session.reviewInProgress`, set on start
+  and cleared in `finishSession`); resuming calls `resumeReview`, which keeps the drill's
+  `queue`/`index`/`results` and re-presents the current queue position via `nextPrompt`.
 - **Word practice** (`beginWordPractice`, kind `"words"`) — sending. A bonus, unlocked
-  only after the lesson's character practice is passed (`progress.completed[lessonId]`)
+  only after the lesson's review is passed (`progress.completed[lessonId]`)
   and from lesson 3; the hub buttons are hidden entirely before lesson 3, and
   shown-but-disabled on lesson 3+ until passed (see `startTeach`). The learner keys a
   whole word (recorded as `wordMarks`/`wordGaps`), presses Submit, and `decodeWord`
@@ -78,19 +81,20 @@ On a pass, the character summary offers **Next lesson** (only shown when passed)
 **Back to lesson** (re-enters the hub, where word practice is now unlocked).
 
 The practice header's back button (**✕**, `btn-quit-practice`) is a hierarchical back: in
-a drill it calls `startTeach(true)` to step back to the presentation hub (pausing the
-run); from the hub it calls `goHome` to leave to the lesson list. Its single **Back to
-practice** button (`resumePractice`) resumes the current prompt without advancing. Each
-mode is independent — there is no automatic hand-off from characters to words. (An intro-
-to-Morse popup lives on the lesson list instead — `btn-intro` → `openIntro`.)
+a drill it calls `startTeach` to step back to the presentation hub (pausing the run);
+from the hub it calls `goHome` to leave to the lesson list. The hub never shows a "back to
+practice" button — every return lands on the three mode buttons, and **Resume review**
+picks the review back up. Each mode is independent — there is no automatic hand-off from
+characters to words. (An intro-to-Morse popup lives on the lesson list instead —
+`btn-intro` → `openIntro`.)
 
 Stepping back mid-drill must not let a queued prompt render underneath the presentation.
 The between-prompt delay (`advanceTimer`, set in `submitEntry`) keeps running, but when it
 fires while the hub is visible (`teachPhaseVisible()`), `nextPrompt` just sets
-`session.advancePending` and returns instead of presenting. `resumePractice` then presents
-the held prompt on return (or, if the delay is still counting, leaves the lingering
-feedback and lets the timer present it). `startSession`/`beginCharacterPractice`/`goHome`
-clear `advanceTimer` so it can never fire against a torn-down or restarted session.
+`session.advancePending` and returns instead of presenting. `resumeReview` then presents
+the held prompt on return (clearing `advancePending`/`advanceTimer` first).
+`startSession`/`beginCharacterPractice`/`goHome` also clear `advanceTimer` so it can never
+fire against a torn-down or restarted session.
 
 ## Lesson pass / progression
 

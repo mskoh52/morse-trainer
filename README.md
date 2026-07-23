@@ -23,10 +23,10 @@ browser's `localStorage`. Clearing site data resets everything.
 - **Learn by sound.** Prompts play the character; the dot/dash chart is hidden by
   default (toggle in Settings). Tapping a lesson opens its presentation, where the new
   characters can be heard and reviewed.
-- **Practice modes.** From the presentation, choose **Character practice** (the Koch
+- **Practice modes.** From the presentation, choose **Review** (the Koch character
   drill), **Word practice** (sending — key whole words), or **Word comprehension**
   (copying — hear a word and pick it from choices). The two word modes are a bonus: they
-  stay locked until this lesson's character practice is passed, and are hidden entirely
+  stay locked until this lesson's review is passed, and are hidden entirely
   before lesson 3, when the first vowels arrive.
 - **Spaced repetition.** Each character is an SM-2 card. Due earlier characters are
   mixed into later lessons to keep them fresh.
@@ -62,19 +62,20 @@ letters, then press **Submit** to decode and check it.
 
 ## Lessons
 
-- Tapping a lesson opens its **presentation** (the new characters), then offers
-  **Character practice** and (once passed) **Word practice**.
+- Tapping a lesson opens its **presentation** (the new characters), which always offers
+  **Review**, **Word practice**, and **Word comprehension**.
 - The presentation includes a **free-practice keyer**: key a character and it shows the
   letter you sent, decoding on its own after a character-separation pause and holding the
   result for two seconds. It is ungraded and does not affect progress.
-- Passing character practice (≥90%) returns you to the lesson, unlocks its word practice
+- Passing the review (≥90%) returns you to the lesson, unlocks its word practice
   bonus, and reveals a **Next lesson** button.
 - Cleared lessons stay open for review.
 - Future lessons are locked; tapping a locked lesson offers to unlock it after a
   confirmation dialog.
 - The back button (**✕**) in the practice header steps back to the lesson's presentation
-  during a drill (pausing it — "Back to practice" resumes the current prompt); from the
-  presentation it leaves to the lesson list.
+  during a drill; from the presentation it leaves to the lesson list. The presentation
+  always shows the three mode buttons — a review already underway reads **Resume review**
+  and continues where you left off.
 - The **?** button on the lesson list opens a short intro to Morse code — a little
   history, how dits and dahs and their timing work, and how to get started.
 
